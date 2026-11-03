@@ -1,0 +1,90 @@
+# Levanta todo el sistema:  docker compose up --build   (o ./run.sh)
+#
+#   api      → http://localhost:8000/docs   (FastAPI: encola y responde)
+#   worker   → consume la cola y ejecuta el grafo
+#   redis    → cola de jobs + estado + checkpointer de LangGraph (necesita RedisJSON y
+#              RediSearch: vienen incluidos en Redis 8)
+#   chroma   → base vectorial de políticas
+#   phoenix  → http://localhost:6006         (trazas)
+
+x-app: &app
+  build: .
+  image: intelligence-system:latest
+  env_file: .env
+  environment:
+    REDIS_URL: redis://redis:6379
+    CHROMA_HOST: chroma
+    CHROMA_PORT: "8000"
+    PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      phoenix:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.worker"]
+    volumes:
+      # El modelo de embeddings se descarga una sola vez y queda cacheado.
+      - hf-cache:/root/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      phoenix:
+        condition: service_started
+
+  redis:
+    image: redis:8.2
+    # AOF: los checkpoints y los jobs sobreviven a un reinicio de Redis.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:1.5.9
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma-data:/data
+    restart: unless-stopped
+
+  phoenix:
+    image: arizephoenix/phoenix:version-20.20.0
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    volumes:
+      - phoenix-data:/mnt/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  chroma-data:
+  phoenix-data:
+  hf-cache:

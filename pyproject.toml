@@ -1,0 +1,16 @@
+[project]
+name = "intelligence-system"
+version = "1.0.0"
+description = "Sistema multi-agente con RAG, API asíncrona, HITL y trazas para FinCrece S.A."
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["e2e: pruebas contra el sistema levantado (docker compose up)"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::PendingDeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
