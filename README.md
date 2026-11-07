@@ -41,10 +41,12 @@ Todo queda trazado en **Arize Phoenix**: cada nodo, cada llamada al LLM y cada t
 **Requisitos:** Docker con Docker Compose y una API key de Anthropic. No hace falta Python local.
 
 ```bash
-git clone <url-del-repo> && cd <repo>
+git clone https://github.com/Franpe-dot/proyecto_final.git && cd proyecto_final
 cp .env.example .env      # completar ANTHROPIC_API_KEY
 ./run.sh                  # equivale a: docker compose up --build -d
 ```
+
+> **Para quien evalúa:** el repositorio no incluye ninguna API key (es público y `.env` está en `.gitignore`). Para probarlo, completá `ANTHROPIC_API_KEY` en `.env` con una key propia o con la que se envió junto con la entrega. En Windows, `./run.sh` se corre desde Git Bash; también se puede usar directamente `docker compose up --build -d`.
 
 `run.sh` crea el `.env` si falta, verifica que la API key esté cargada, levanta los cinco servicios y espera a que la API responda en `/health`.
 
